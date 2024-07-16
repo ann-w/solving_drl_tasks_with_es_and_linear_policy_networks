@@ -1,0 +1,8 @@
+sb3-contrib
+numpy
+gymnasium[box2d]
+gymnasium[mujoco]
+gymnasium[atari]
+gymnasium[accept-rom-license]
+numpy==1.26.4
+
