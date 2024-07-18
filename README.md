@@ -33,7 +33,8 @@ and tune.
 
 ##  Usage
 
-Follow the instructions in the README in the ARS or ES folder for the installation and usage instructions.
+Follow the instructions in the README in the ARS or ES folder for the installation and usage instructions. For the RL experiments, follow the installation instructions in the [CleanRL library](https://github.com/vwxyzjn/cleanrl). To run the RL linear policies, remove the hidden layers from the network.
+
 
 ## Citation
 
