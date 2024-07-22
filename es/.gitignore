@@ -1,0 +1,10 @@
+venv
+data
+run
+*pyc
+__pycache__/
+*.png
+.ipynb
+.ipynb_checkpoints/
+
+*egg-info

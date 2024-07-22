@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rl-es"
+version = "0.0.1"
+authors = [
+  { name="Jacob de Nobel", email="jacobdenobel@gmail.com" },
+]
+description = ""
+readme = ""
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "black",
+  "gymnasium[accept-rom-license]",
+  "gymnasium[atari]",
+  "gymnasium[box2d]",
+  "gymnasium[mujoco]",
+  "matplotlib",
+  "moviepy",
+  "numpy",
+  "pandas",
+  "scikit-image",
+  "scipy",
+]
