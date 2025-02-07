@@ -506,3 +506,88 @@ class CMAES:
         finally:
             state.logger.close()
         return state.best, state.mean
+
+
+@dataclass
+class ARSSetting:
+    alpha: float
+    sigma: float
+    lambda0: int
+    mu: int = None 
+
+    def __post_init__(self):
+        self.mu = self.mu or self.lambda0
+
+ARS_OPTIMAL_PARAMETERS = {
+    "Swimmer-v4": ARSSetting(0.02, 0.01, 1),
+    # "Hopper-v4": ARSSetting(0.02, 0.02, 4),
+    "Hopper-v4": ARSSetting(0.01, 0.025, 8, 4),
+    # "HalfCheetah-v4": ARSSetting(0.02, 0.03, 8),
+    "HalfCheetah-v4": ARSSetting(0.02, 0.03, 32, 4),
+    # "Walker2d-v4": ARSSetting(0.025, 0.01, 60),
+    "Walker2d-v4": ARSSetting(0.03, 0.025, 40, 30),
+    # "Ant-v4": ARSSetting(0.01, 0.025, 40),
+    "Ant-v4": ARSSetting(0.015, 0.025, 60, 20),
+    "Humanoid-v4": ARSSetting(0.02, 0.0075, 230),
+}
+
+@dataclass
+class ARS:
+    n: int
+    
+    data_folder: str = None
+    test_gen: int = 25
+    alpha: float = 0.02       # learning rate alpha
+    lambda_: int = 16         # n offspring for each direction
+    mu: int = 16              # best offspring
+    sigma0: float = 0.03      # noise parameter
+    initialization: str = "zero"
+
+    def __post_init__(self):
+        self.lambda_ = self.lambda_ or int(init_lambda(self.n) / 2)
+        self.mu = self.mu or self.lambda_
+        self.sigma0 = self.sigma0 or 0.03
+
+    def __call__(self, problem: Objective):
+        init = Initializer(self.n, method=self.initialization, max_evals=500)
+        m = init.get_x_prime(problem)
+
+        state = State("ARS", self.data_folder, self.test_gen, self.lambda_ * 2)
+        try:
+            while not problem.should_stop():
+                delta = np.random.normal(size=(self.n, self.lambda_))
+
+                neg = m - (self.sigma0 * delta)
+                pos = m + (self.sigma0 * delta)
+
+                neg_reward = -problem(neg)
+                pos_reward = -problem(pos)
+                
+                best_rewards = np.maximum(neg_reward, pos_reward)
+                idx = np.argsort(best_rewards)[::-1]
+                mu_best = idx[: self.mu]
+
+                rewards = np.c_[pos_reward[mu_best], neg_reward[mu_best]]
+                sigma_rewards = rewards.std() + 1e-12
+                weight = self.alpha / (self.mu * sigma_rewards)
+                delta_rewards =  rewards[:, 0] -  rewards[:, 1]
+                m += (weight * (delta_rewards * delta[:, mu_best]).sum(axis=1, keepdims=True))
+
+                best_idx = mu_best[0]
+                if neg_reward[best_idx] > pos_reward[best_idx]:
+                    best = neg[:, best_idx]
+                else:
+                    best = pos[:, best_idx]
+
+                state.update(
+                    problem,
+                    Solution(-best_rewards[best_idx],  best.copy()),
+                    Solution(-np.mean(best_rewards), m.copy()),
+                    self.sigma0,
+                    np.r_[pos_reward, neg_reward]
+                )
+        except KeyboardInterrupt:
+            pass
+        finally:
+            state.logger.close()
+        return state.best, state.mean
