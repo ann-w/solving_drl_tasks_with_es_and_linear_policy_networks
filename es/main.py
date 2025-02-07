@@ -7,6 +7,8 @@ import numpy as np
 from rl_es.algorithms import (
     CSA,
     CMAES,
+    ARS,
+    ARS_OPTIMAL_PARAMETERS,
 )
 from rl_es.objective import Objective
 from rl_es.setting import ENVIRONMENTS
@@ -16,6 +18,8 @@ STRATEGIES = (
     "csa",
     "cma-es",
     "sep-cma-es",
+    "ars",
+    "ars-v2",
 )
 
 def run_optimizer(args, obj):
@@ -43,6 +47,24 @@ def run_optimizer(args, obj):
             initialization=args.initialization,
             sep="sep" in args.strategy,
             active="active" in args.strategy
+        )
+    elif args.strategy == "ars" or args.strategy == "ars-v2":
+        params = ARS_OPTIMAL_PARAMETERS.get(args.env_name)
+        if args.ars_optimal and params:
+            args.alpha = params.alpha
+            args.sigma0 = params.sigma
+            args.lamb = params.lambda0
+            args.mu = params.mu
+
+        optimizer = ARS(
+            obj.n,
+            sigma0=args.sigma0,
+            alpha=args.alpha,
+            data_folder=data_folder,
+            test_gen=args.test_every_nth_iteration,
+            mu=args.mu,
+            lambda_=args.lamb,
+            initialization=args.initialization,
         )
     else:
         raise ValueError(f"{args.strategy} is not implemented")

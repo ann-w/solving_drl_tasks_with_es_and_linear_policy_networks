@@ -4,13 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rl-es"
-version = "0.0.1"
-authors = [
-  { name="Jacob de Nobel", email="jacobdenobel@gmail.com" },
-]
+version = "0.0.2"
 description = ""
 readme = ""
-requires-python = ">=3.8"
+requires-python = ">=3.7"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -18,14 +15,16 @@ classifiers = [
 ]
 dependencies = [
   "black",
-  "gymnasium[accept-rom-license]",
-  "gymnasium[atari]",
-  "gymnasium[box2d]",
-  "gymnasium[mujoco]",
+  "gymnasium[all,accept-rom-license]==0.26.3",
+  "gymnasium[atari]==0.26.3",
+  "gymnasium[box2d]==0.26.3",
+  "gymnasium[mujoco]==0.26.3",
+  "mujoco==2.2.0",
   "matplotlib",
   "moviepy",
   "numpy",
   "pandas",
   "scikit-image",
   "scipy",
+  "Cython<3"
 ]
