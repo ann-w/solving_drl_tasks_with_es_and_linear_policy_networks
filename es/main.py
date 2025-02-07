@@ -49,9 +49,8 @@ def run_optimizer(args, obj):
             active="active" in args.strategy
         )
     elif args.strategy == "ars" or args.strategy == "ars-v2":
-        if args.ars_optimal and (
-            params := ARS_OPTIMAL_PARAMETERS.get(args.env_name)
-        ):
+        params = ARS_OPTIMAL_PARAMETERS.get(args.env_name)
+        if args.ars_optimal and params:
             args.alpha = params.alpha
             args.sigma0 = params.sigma
             args.lamb = params.lambda0
