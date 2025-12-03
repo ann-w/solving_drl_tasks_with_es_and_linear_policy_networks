@@ -7,6 +7,7 @@ import numpy as np
 from rl_es.algorithms import (
     CSA,
     CMAES,
+    LMMAES,
     ARS,
     ARS_OPTIMAL_PARAMETERS,
 )
@@ -15,11 +16,12 @@ from rl_es.setting import ENVIRONMENTS
 
 DATA = os.path.join(os.path.realpath(os.path.dirname(__file__)), "data")
 STRATEGIES = (
-    "csa",
-    "cma-es",
-    "sep-cma-es",
-    "ars",
-    "ars-v2",
+    # "csa",
+    # "cma-es",
+    # "sep-cma-es",
+    # "ars",
+    # "ars-v2",
+    "lm-ma-es",
 )
 
 def run_optimizer(args, obj):
@@ -66,6 +68,16 @@ def run_optimizer(args, obj):
             mu=args.mu,
             lambda_=args.lamb,
             initialization=args.initialization,
+        )
+    elif args.strategy == "lm-ma-es":
+        optimizer = LMMAES(
+            obj.n,
+            sigma0=args.sigma0,
+            lambda_=args.lamb,
+            data_folder=data_folder,
+            test_gen=args.test_every_nth_iteration,
+            initialization=args.initialization,
+            seed=args.seed,
         )
     else:
         raise ValueError(f"{args.strategy} is not implemented")
