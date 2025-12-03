@@ -168,6 +168,12 @@ if __name__ == "__main__":
     parser.add_argument("--seed_train_envs", action="store_true")
     parser.add_argument("--scale_by_std", action="store_true")
     parser.add_argument("--break_timesteps", action="store_true")
+    parser.add_argument(
+        "--max_train_timesteps",
+        type=float,
+        default=None,
+        help="Override EnvSetting.max_train_timesteps for the current run",
+    )
 
     parser.add_argument(
         "--initialization",
@@ -198,6 +204,8 @@ if __name__ == "__main__":
 
     t = time.time()
     env_setting = ENVIRONMENTS[args.env_name]
+    if args.max_train_timesteps is not None:
+        env_setting.max_train_timesteps = args.max_train_timesteps
 
     if not os.path.isdir(DATA):
         os.makedirs(DATA)
