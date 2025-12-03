@@ -12,3 +12,5 @@
 .vscode/
 *.code-workspace
 
+# ignore logs
+run/**

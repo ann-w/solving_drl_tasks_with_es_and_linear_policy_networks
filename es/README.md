@@ -1,5 +1,7 @@
 # Installation
 
+Below is tested with Linux.
+
 Please make sure the code in this folder is installed properly, using:
 
 ## 1. Create the conda environment (Python 3.11)

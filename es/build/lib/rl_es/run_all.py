@@ -36,6 +36,7 @@ STRATEGIES = [
     "csa",
     "cma-es",
     "sep-cma-es",
+    "lm-ma-es",
 ]
 
 SIGMA = [

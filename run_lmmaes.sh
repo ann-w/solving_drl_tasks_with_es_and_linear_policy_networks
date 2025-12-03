@@ -47,7 +47,19 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ES_DIR="${ROOT_DIR}/es"
 
 mkdir -p "$RUN_DIR"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+RUN_TS_DIR="${RUN_DIR}/${TIMESTAMP}"
+mkdir -p "$RUN_TS_DIR"
+SCRIPT_LOG="${RUN_TS_DIR}/lmmaes_launcher_${TIMESTAMP}.log"
+# Mirror stdout/stderr so the run is inspectable after completion.
+exec > >(tee -a "$SCRIPT_LOG") 2>&1
+
+echo "Logging launcher output to ${SCRIPT_LOG}"
 echo "Running strategy: ${STRATEGY}"
+echo "Configured ${#ENVS[@]} environments, ${#SIGMAS[@]} sigmas, ${#LAMBDAS[@]} lambda labels, ${#SEEDS[@]} seeds"
+
+# Make sure we import the local rl_es sources rather than an installed release.
+export PYTHONPATH="${ES_DIR}/src:${PYTHONPATH:-}"
 
 load_guard() {
   while [[ $(jobs -rp | wc -l | tr -d ' ') -ge ${MAX_PARALLEL} ]]; do
@@ -74,18 +86,23 @@ PY
 
 job_id=0
 for env in "${ENVS[@]}"; do
+  env_dir="${RUN_TS_DIR}/${env}"
+  mkdir -p "$env_dir"
   mapfile -t RESOLVED_LAMBDAS < <(
     for method in "${LAMBDAS[@]}"; do
       resolve_lambda "$env" "$method"
     done
   )
 
+  env_generations=$(( ${#SIGMAS[@]} * ${#RESOLVED_LAMBDAS[@]} * ${#SEEDS[@]} ))
+  echo "Preparing ${env_generations} generations for ${env} (${#RESOLVED_LAMBDAS[@]} lambda choices)"
+
   for sigma in "${SIGMAS[@]}"; do
     for lambda_val in "${RESOLVED_LAMBDAS[@]}"; do
       for seed in "${SEEDS[@]}"; do
         load_guard
-        ((job_id++))
-        log_file="${RUN_DIR}/${env//\//_}_${sigma}_${lambda_val}_${seed}.log"
+        ((++job_id))
+        log_file="${env_dir}/${env//\//_}_${sigma}_${lambda_val}_${seed}.log"
         (
           cd "$ES_DIR"
           MUJOCO_GL="$MUJOCO_GL" "${PYTHON_BIN}" main.py \

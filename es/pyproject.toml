@@ -23,5 +23,6 @@ dependencies = [
   "pandas",
   "scikit-image",
   "scipy",
+  "mujoco>=2.3.3,<3",
   "Cython<3"
 ]
