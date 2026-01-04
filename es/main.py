@@ -12,6 +12,7 @@ from rl_es.algorithms import (
 )
 from rl_es.objective import Objective
 from rl_es.setting import ENVIRONMENTS
+from rl_es.utils import identity
 from rl_es.utils import ExperimentTimer
 
 DATA = os.path.join(os.path.realpath(os.path.dirname(__file__)), "data")
@@ -190,14 +191,33 @@ if __name__ == "__main__":
         "--revaluate_best_after",
         type=int,
         default=None,
-    )   
+    )
+    parser.add_argument(
+        "--reward_shaping",
+        type=lambda x: x.lower() in ('true', '1', 'yes'),
+        default=True,
+        help="Enable reward shaping (subtract healthy/alive bonus for MuJoCo locomotion tasks). Default: True",
+    )
+    parser.add_argument(
+        "--data_dir",
+        type=str,
+        default=None,
+        help="Directory to store results. Default: data/",
+    )
 
     args = parser.parse_args()
 
     t = time.time()
     env_setting = ENVIRONMENTS[args.env_name]
 
-    if not os.path.isdir(DATA):
+    # Disable reward shaping if specified
+    if not args.reward_shaping:
+        env_setting.reward_shaping = identity
+
+    # Use custom data directory if provided
+    data_root = args.data_dir if args.data_dir else DATA
+
+    if not os.path.isdir(data_root):
         os.makedirs(DATA)
 
     if args.n_timesteps is None:
@@ -231,7 +251,7 @@ if __name__ == "__main__":
         if args.lamb is not None:
             strategy_name = f"{strategy_name}-lambda-{args.lamb}"
 
-    data_folder = f"{DATA}/{args.env_name}/{strategy_name}/{t}"
+    data_folder = f"{data_root}/{args.env_name}/{strategy_name}/{t}"
     if args.play is None:
         os.makedirs(data_folder, exist_ok=True)
 
