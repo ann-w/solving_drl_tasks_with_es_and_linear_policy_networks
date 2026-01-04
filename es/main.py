@@ -217,8 +217,7 @@ if __name__ == "__main__":
     # Use custom data directory if provided
     data_root = args.data_dir if args.data_dir else DATA
 
-    if not os.path.isdir(data_root):
-        os.makedirs(DATA)
+    os.makedirs(data_root, exist_ok=True)
 
     if args.n_timesteps is None:
         args.n_timesteps = env_setting.max_episode_steps
