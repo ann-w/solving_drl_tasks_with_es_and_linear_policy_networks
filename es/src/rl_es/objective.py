@@ -6,6 +6,10 @@ from dataclasses import dataclass
 from contextlib import redirect_stdout
 
 import numpy as np
+# Patch for NumPy 2.0 compatibility
+if not hasattr(np, "float_"):
+    np.float_ = np.float64
+
 import gymnasium as gym
 from gymnasium.utils.save_video import save_video
 

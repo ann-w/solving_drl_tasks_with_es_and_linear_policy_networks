@@ -6,6 +6,10 @@ from dataclasses import dataclass, field
 
 
 import numpy as np
+# Patch for NumPy 2.0 compatibility
+if not hasattr(np, "float_"):
+    np.float_ = np.float64
+
 from scipy.stats import qmc
 from lmmaes import Lmmaes
 
