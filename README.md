@@ -24,7 +24,35 @@ benchmarks, demonstrating superior sample efficiency and robustness in training 
 
 ##  Usage
 
-Follow the instructions in the README in the ES folder for the installation and usage instructions. With this code, you can run the Evolution Strategies and Augmented Random Search. For the RL experiments, follow the installation instructions in the [CleanRL library](https://github.com/vwxyzjn/cleanrl). To run the RL linear policies, remove the hidden layers from the network.
+The code in this repository can be used to run the Evolution Strategies (CSA-ES, CMA-ES, sep-CMA-ES) and Augmented Random Search.
+
+1. In terminal go to the ES folder.
+```
+cd es
+```
+
+2. Install the code:
+```
+pip install .
+```
+
+3. All of the code can be run from `main.py`. For instance to run CSA on LanderLander:
+
+  ```bash
+  python main.py --env=LunarLander-v2 --strat=csa --normalized --sigma0=.5 --lamb=16 --seed=10 --test_every=25 
+  ```
+
+The parameters for the strategies are defined as follows:
+
+- CSA-ES `--strat=csa`
+- CMA-ES `--strat=cma-es`
+- sep-CMA-ES `--strat=sep=cma-es`
+- ARS-V1 `--strat=ars`
+- ARS-V2 `--strat=ars-v2`
+
+
+### Deep Reinforcement Learning (RL) and Linear RL Networks
+We have used the [cleanrl repository](github.com/vwxyzjn/cleanrl) for the reinforcement learning algorithms. CleanRL is a Deep Reinforcement Learning library that provides high-quality single-file implementation with research-friendly features. To run the RL linear policies, remove the hidden layers from the network. All hyperparameters are reported in the paper.
 
 
 <!-- ## Citation

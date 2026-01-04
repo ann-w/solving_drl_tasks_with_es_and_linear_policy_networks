@@ -13,6 +13,7 @@ from rl_es.algorithms import (
 )
 from rl_es.objective import Objective
 from rl_es.setting import ENVIRONMENTS
+from rl_es.utils import ExperimentTimer
 
 DATA = os.path.join(os.path.realpath(os.path.dirname(__file__)), "data")
 STRATEGIES = (
@@ -24,8 +25,11 @@ STRATEGIES = (
     "lm-ma-es",
 )
 
-def run_optimizer(args, obj):
+def run_optimizer(args, obj, timer=None):
     obj.open()
+    if timer:
+        timer.checkpoint("env_opened")
+    
     if args.strategy == "csa":
         optimizer = CSA(
             obj.n,
@@ -51,9 +55,8 @@ def run_optimizer(args, obj):
             active="active" in args.strategy
         )
     elif args.strategy == "ars" or args.strategy == "ars-v2":
-        if args.ars_optimal and (
-            params := ARS_OPTIMAL_PARAMETERS.get(args.env_name)
-        ):
+        params = ARS_OPTIMAL_PARAMETERS.get(args.env_name)
+        if args.ars_optimal and params:
             args.alpha = params.alpha
             args.sigma0 = params.sigma
             args.lamb = params.lambda0
@@ -82,6 +85,9 @@ def run_optimizer(args, obj):
     else:
         raise ValueError(f"{args.strategy} is not implemented")
 
+    if timer:
+        timer.checkpoint("optimizer_initialized")
+
     args.sigma0 = optimizer.sigma0
     args.mu = int(optimizer.mu)
     args.lambda_ = int(optimizer.lambda_)
@@ -91,6 +97,10 @@ def run_optimizer(args, obj):
         json.dump(vars(args), f)
 
     best, mean = optimizer(obj)
+    
+    if timer:
+        timer.checkpoint("optimization_complete")
+    
     np.save(f"{data_folder}/best.npy", best.x)
     np.save(f"{data_folder}/mean.npy", mean.x)
     best, mean = best.x, mean.x
@@ -245,6 +255,10 @@ if __name__ == "__main__":
     if args.play is None:
         os.makedirs(data_folder, exist_ok=True)
 
+    # Initialize experiment timer
+    timer = ExperimentTimer(data_folder=data_folder if args.play is None else None)
+    timer.checkpoint("setup_complete")
+
     if args.strategy == "ars-v2":
         args.normalized = True
     elif args.strategy == "ars":
@@ -268,9 +282,14 @@ if __name__ == "__main__":
         break_timesteps=args.break_timesteps,
         max_parallel=args.max_parallel
     )
+    timer.checkpoint("objective_created")
 
     if args.play is None:
-        run_optimizer(args, obj)
+        run_optimizer(args, obj, timer)
+        timer.checkpoint("experiment_complete")
+        timer.save()
+        print(f"\nExperiment completed in {timer.elapsed_formatted()}")
+        print(f"Timing details saved to {data_folder}/timing.json")
     else:
         obj.store_video = True
         obj.n_test_episodes = 1
