@@ -17,11 +17,11 @@ from rl_es.utils import ExperimentTimer
 
 DATA = os.path.join(os.path.realpath(os.path.dirname(__file__)), "data")
 STRATEGIES = (
-    # "csa",
-    # "cma-es",
-    # "sep-cma-es",
-    # "ars",
-    # "ars-v2",
+    "csa",
+    "cma-es",
+    "sep-cma-es",
+    "ars",
+    "ars-v2",
     "lm-ma-es",
 )
 
@@ -170,6 +170,7 @@ if __name__ == "__main__":
         "--n_layers", help="Number of layers in the controller", type=int, default=1
     )
     parser.add_argument("--with_bias", action="store_true")
+    parser.add_argument("--mlp", action="store_true", help="Use MLP 64x64 architecture (2 hidden layers with 64 units each)")
     parser.add_argument("--normalized", action="store_true")
     parser.add_argument("--mirrored", action="store_true")
     parser.add_argument("--uncertainty_handled", action="store_true")
@@ -224,6 +225,12 @@ if __name__ == "__main__":
         args.n_timesteps = env_setting.max_episode_steps
 
 
+    # Override n_layers and n_hidden if --mlp is enabled
+    if args.mlp:
+        args.n_layers = 3  # input -> hidden1 -> hidden2 -> output
+        args.n_hidden = 64
+        args.with_bias = True
+
     print(args)
     print(env_setting)
 
@@ -247,6 +254,9 @@ if __name__ == "__main__":
 
         if args.scale_by_std:
             strategy_name = f"{strategy_name}-std"
+
+        if args.mlp:
+            strategy_name = f"mlp-{strategy_name}"
 
         if args.lamb is not None:
             strategy_name = f"{strategy_name}-lambda-{args.lamb}"
