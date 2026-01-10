@@ -4,11 +4,12 @@
 # This script tests whether larger network architectures (matching PPO's 64x64)
 # can be effectively optimized by evolution strategies
 
-set -e  # Exit on error
+# Note: Don't use set -e with background jobs and wait -n
 
 # Configuration
-COMMON_ARGS="--normalized --seed 42 --mlp"
+COMMON_ARGS="--normalized --seed 42 --mlp --max_parallel 7 --data_dir data/mlp_experiments --break_timesteps"
 DATA_DIR="data/mlp_experiments"
+MAX_JOBS=4  # Run 4 experiments in parallel (4 jobs × 7 workers = 28 threads)
 
 # Classic Control environments
 CLASSIC_CONTROL=(
@@ -48,46 +49,48 @@ run_experiment() {
     local strategy=$1
     local env=$2
     
-    echo "========================================"
-    echo "Running $strategy on $env with MLP 64x64"
-    echo "========================================"
+    echo "[$(date '+%H:%M:%S')] Starting $strategy on $env"
     
     python main.py \
         --strategy "$strategy" \
         --env_name "$env" \
-        $COMMON_ARGS
+        $COMMON_ARGS \
+        > "logs/${strategy}_${env}.log" 2>&1
     
-    echo "Completed $strategy on $env"
-    echo ""
+    echo "[$(date '+%H:%M:%S')] Completed $strategy on $env"
 }
 
-# Function to run all experiments for a strategy
+# Function to run all experiments for a strategy in parallel
 run_all_for_strategy() {
     local strategy=$1
     
     echo "########################################"
     echo "# Starting experiments for: $strategy"
+    echo "# Running $MAX_JOBS jobs in parallel"
     echo "########################################"
     echo ""
     
-    # Classic Control
-    echo ">>> Classic Control environments"
-    for env in "${CLASSIC_CONTROL[@]}"; do
-        run_experiment "$strategy" "$env"
+    # Create logs directory
+    mkdir -p logs
+    
+    # Run all environments in parallel with job control
+    local job_count=0
+    
+    for env in "${ALL_ENVS[@]}"; do
+        run_experiment "$strategy" "$env" &
+        ((job_count++))
+        
+        # Wait if we've reached max parallel jobs
+        if ((job_count >= MAX_JOBS)); then
+            wait -n  # Wait for any job to finish
+            ((job_count--))
+        fi
     done
     
-    # MuJoCo
-    echo ">>> MuJoCo environments"
-    for env in "${MUJOCO[@]}"; do
-        run_experiment "$strategy" "$env"
-    done
+    # Wait for remaining jobs
+    wait
     
-    # Atari
-    echo ">>> Atari environments"
-    for env in "${ATARI[@]}"; do
-        run_experiment "$strategy" "$env"
-    done
-    
+    echo ""
     echo "########################################"
     echo "# Completed all experiments for: $strategy"
     echo "########################################"
@@ -95,26 +98,25 @@ run_all_for_strategy() {
 }
 
 # Main execution
-echo "=============================================="
+echo "==============================================" 
 echo "MLP 64x64 Experiments"
 echo "Architecture: 2 hidden layers, 64 units each"
+echo "Parallelization: $MAX_JOBS jobs × 7 workers = 28 threads"
 echo "=============================================="
 echo ""
 
 # Print parameter counts
 echo "Expected parameter counts with MLP 64x64:"
-echo "  CartPole-v1:     ~4,610 params"
-echo "  Acrobot-v1:      ~4,803 params"
-echo "  LunarLander-v2:  ~5,060 params"
-echo "  Pendulum-v1:     ~4,417 params"
-echo "  BipedalWalker-v3:~6,084 params"
-echo "  Swimmer-v4:      ~4,866 params"
-echo "  Hopper-v4:       ~5,059 params"
-echo "  HalfCheetah-v4:  ~5,574 params"
-echo "  Walker2d-v4:     ~5,574 params"
-echo "  Ant-v4:          ~6,344 params"
-echo "  Humanoid-v4:     ~29,248 params"
+echo "  Classic Control: ~4,400 - 6,000 params"
+echo "  MuJoCo:          ~4,800 - 29,400 params"
+echo "  Atari:           ~12,600 - 13,600 params"
 echo ""
+echo "Total experiments: ${#ALL_ENVS[@]} environments × 2 strategies = $((${#ALL_ENVS[@]} * 2))"
+echo "Logs will be saved to: logs/<strategy>_<env>.log"
+echo ""
+
+# Create logs directory
+mkdir -p logs
 
 # Run LM-MA-ES first (designed for large-scale optimization)
 run_all_for_strategy "lm-ma-es"
@@ -124,4 +126,5 @@ run_all_for_strategy "sep-cma-es"
 
 echo "=============================================="
 echo "All MLP 64x64 experiments completed!"
+echo "Check logs/ directory for individual experiment outputs"
 echo "=============================================="

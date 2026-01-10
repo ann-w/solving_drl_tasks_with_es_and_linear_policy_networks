@@ -201,6 +201,12 @@ if __name__ == "__main__":
     parser.add_argument("--penalize_inactivity", action="store_true")
 
     parser.add_argument(
+        "--data_dir",
+        type=str,
+        default=None,
+        help="Custom data directory for experiment outputs (default: ./data)",
+    )
+    parser.add_argument(
         "--play",
         type=str,
         default=None,
@@ -261,7 +267,9 @@ if __name__ == "__main__":
         if args.lamb is not None:
             strategy_name = f"{strategy_name}-lambda-{args.lamb}"
 
-    data_folder = f"{DATA}/{args.env_name}/{strategy_name}/{t}"
+    # Use custom data directory if provided
+    base_data_dir = args.data_dir if args.data_dir else DATA
+    data_folder = f"{base_data_dir}/{args.env_name}/{strategy_name}/{t}"
     if args.play is None:
         os.makedirs(data_folder, exist_ok=True)
 
