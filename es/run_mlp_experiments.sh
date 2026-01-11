@@ -7,7 +7,10 @@
 # Note: Don't use set -e with background jobs and wait -n
 
 # Configuration
-COMMON_ARGS="--normalized --seed 42 --mlp --max_parallel 7 --data_dir data/mlp_experiments --break_timesteps"
+# Seeds 42 already done, run seeds 43-46 for 4 more runs (5 total)
+# SEEDS=(42 43 44 45 46)
+SEEDS=(43 44 45 46)
+BASE_ARGS="--normalized --mlp --max_parallel 7 --data_dir data/mlp_experiments --break_timesteps"
 DATA_DIR="data/mlp_experiments"
 MAX_JOBS=4  # Run 4 experiments in parallel (4 jobs × 7 workers = 28 threads)
 
@@ -48,16 +51,18 @@ ALL_ENVS=("${CLASSIC_CONTROL[@]}" "${MUJOCO[@]}" "${ATARI[@]}")
 run_experiment() {
     local strategy=$1
     local env=$2
+    local seed=$3
     
-    echo "[$(date '+%H:%M:%S')] Starting $strategy on $env"
+    echo "[$(date '+%H:%M:%S')] Starting $strategy on $env (seed=$seed)"
     
     python main.py \
         --strategy "$strategy" \
         --env_name "$env" \
-        $COMMON_ARGS \
-        > "logs/${strategy}_${env}.log" 2>&1
+        --seed "$seed" \
+        $BASE_ARGS \
+        > "logs/${strategy}_${env}_seed${seed}.log" 2>&1
     
-    echo "[$(date '+%H:%M:%S')] Completed $strategy on $env"
+    echo "[$(date '+%H:%M:%S')] Completed $strategy on $env (seed=$seed)"
 }
 
 # Function to run all experiments for a strategy in parallel
@@ -66,6 +71,7 @@ run_all_for_strategy() {
     
     echo "########################################"
     echo "# Starting experiments for: $strategy"
+    echo "# Seeds: ${SEEDS[*]}"
     echo "# Running $MAX_JOBS jobs in parallel"
     echo "########################################"
     echo ""
@@ -73,18 +79,20 @@ run_all_for_strategy() {
     # Create logs directory
     mkdir -p logs
     
-    # Run all environments in parallel with job control
+    # Run all environments and seeds in parallel with job control
     local job_count=0
     
-    for env in "${ALL_ENVS[@]}"; do
-        run_experiment "$strategy" "$env" &
-        ((job_count++))
-        
-        # Wait if we've reached max parallel jobs
-        if ((job_count >= MAX_JOBS)); then
-            wait -n  # Wait for any job to finish
-            ((job_count--))
-        fi
+    for seed in "${SEEDS[@]}"; do
+        for env in "${ALL_ENVS[@]}"; do
+            run_experiment "$strategy" "$env" "$seed" &
+            ((job_count++))
+            
+            # Wait if we've reached max parallel jobs
+            if ((job_count >= MAX_JOBS)); then
+                wait -n  # Wait for any job to finish
+                ((job_count--))
+            fi
+        done
     done
     
     # Wait for remaining jobs
@@ -99,8 +107,9 @@ run_all_for_strategy() {
 
 # Main execution
 echo "==============================================" 
-echo "MLP 64x64 Experiments"
+echo "MLP 64x64 Experiments - Additional Runs"
 echo "Architecture: 2 hidden layers, 64 units each"
+echo "Seeds: ${SEEDS[*]} (seed 42 already completed)"
 echo "Parallelization: $MAX_JOBS jobs × 7 workers = 28 threads"
 echo "=============================================="
 echo ""
@@ -111,8 +120,8 @@ echo "  Classic Control: ~4,400 - 6,000 params"
 echo "  MuJoCo:          ~4,800 - 29,400 params"
 echo "  Atari:           ~12,600 - 13,600 params"
 echo ""
-echo "Total experiments: ${#ALL_ENVS[@]} environments × 2 strategies = $((${#ALL_ENVS[@]} * 2))"
-echo "Logs will be saved to: logs/<strategy>_<env>.log"
+echo "Total experiments: ${#ALL_ENVS[@]} environments × 2 strategies × ${#SEEDS[@]} seeds = $((${#ALL_ENVS[@]} * 2 * ${#SEEDS[@]}))"
+echo "Logs will be saved to: logs/<strategy>_<env>_seed<seed>.log"
 echo ""
 
 # Create logs directory
@@ -125,6 +134,7 @@ run_all_for_strategy "lm-ma-es"
 run_all_for_strategy "sep-cma-es"
 
 echo "=============================================="
-echo "All MLP 64x64 experiments completed!"
+echo "All MLP 64x64 additional runs completed!"
+echo "Total runs per env/method: 5 (seed 42 + seeds 43-46)"
 echo "Check logs/ directory for individual experiment outputs"
 echo "=============================================="
