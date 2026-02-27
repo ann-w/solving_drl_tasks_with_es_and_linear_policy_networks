@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Rerun MLP 64x64 experiments with revised per-environment hyperparameters
-# Strategies: lm-ma-es, sep-cma-es
-# Uses tuned sigma0 and lambda from mlp_hyperparameters_revised/overleaf_table.md
+# Rerun MLP 64x64 experiments with default CMA-ES hyperparameters
+# Strategies: lm-ma-es, sep-cma-es, csa
+# sigma0 = 0.6 for all environments
+# lambda  = 4 + floor(3 * ln(n))  (CMA-ES default, computed from parameter count)
 #
 # Optimised for AMD Ryzen 9 3950X (16 cores / 32 threads, 62 GB RAM):
 #   - 3 concurrent experiments × 8 AsyncVectorEnv workers = 24 subprocesses + 3 parents
@@ -19,7 +20,7 @@ export PYTHONPATH="${SCRIPT_DIR}/es/src${PYTHONPATH:+:$PYTHONPATH}"
 PYTHON="/home/annie/miniconda3/envs/solving-drl-with-es-py310/bin/python"
 
 SEEDS=(43 44 45 46)
-STRATEGIES=("lm-ma-es" "sep-cma-es")
+STRATEGIES=("lm-ma-es" "sep-cma-es" "csa")
 DATA_DIR="es/data/mlp_experiments_revised"
 LOG_DIR="es/logs"
 MAX_PARALLEL_ENVS=8    # Env subprocesses per experiment (via multiprocessing)
@@ -28,56 +29,57 @@ BASE_ARGS="--normalized --mlp --max_parallel $MAX_PARALLEL_ENVS --data_dir $DATA
 FAIL_LOG="$LOG_DIR/revised_failures.log"
 
 # ── Per-environment hyperparameters (sorted longest-first) ───────────────────
-# Format: ENV|SIGMA0|LAMBDA|MAX_TIMESTEPS
+# Format: ENV|MAX_TIMESTEPS
+#
+# sigma0 = 0.6 for all environments (set via SIGMA0 below)
+# lambda  = 4 + floor(3 * ln(n))  (computed by init_lambda "default" inside the algorithm)
+# we don't pass lambda argument, so lambda stays None and default is used. 
 #
 # Longest experiments first → short jobs fill gaps at the end (bin-packing).
+SIGMA0=0.6
 EXPERIMENTS=(
     # Atari (20M timesteps each)
-    "Atlantis-v5|0.10|128|20000000"
-    "BeamRider-v5|0.10|128|20000000"
-    "Pong-v5|0.10|128|20000000"
-    "CrazyClimber-v5|0.10|128|20000000"
-    "Enduro-v5|0.10|128|20000000"
-    "Qbert-v5|0.10|128|20000000"
-    "Seaquest-v5|0.10|128|20000000"
-    "Boxing-v5|0.10|128|20000000"
-    "SpaceInvaders-v5|0.10|128|20000000"
+    "Atlantis-v5|20000000"
+    "BeamRider-v5|20000000"
+    "Pong-v5|20000000"
+    "CrazyClimber-v5|20000000"
+    "Enduro-v5|20000000"
+    "Qbert-v5|20000000"
+    "Seaquest-v5|20000000"
+    "Boxing-v5|20000000"
+    "SpaceInvaders-v5|20000000"
     # High-dim MuJoCo (10M)
-    "Ant-v4|0.08|128|10000000"
-    "Humanoid-v4|0.03|128|10000000"
+    "Ant-v4|10000000"
+    "Humanoid-v4|10000000"
     # Medium MuJoCo
-    "HalfCheetah-v4|0.05|128|3000000"
-    "Walker2d-v4|0.05|128|2000000"
-    "BipedalWalker-v3|0.05|64|2000000"
-    "Hopper-v4|0.08|64|1000000"
+    "HalfCheetah-v4|3000000"
+    "Walker2d-v4|2000000"
+    "BipedalWalker-v3|2000000"
+    "Hopper-v4|1000000"
     # Fast
-    "Swimmer-v4|0.10|64|500000"
-    "CartPole-v1|0.20|64|500000"
-    "Acrobot-v1|0.15|64|500000"
-    "Pendulum-v1|0.20|64|500000"
-    "LunarLander-v2|0.15|64|500000"
+    "Swimmer-v4|500000"
+    "CartPole-v1|500000"
+    "Acrobot-v1|500000"
+    "Pendulum-v1|500000"
+    "LunarLander-v2|500000"
 )
 
 # ── Helper: parse experiment spec ────────────────────────────────────────────
 get_env()           { echo "$1" | cut -d'|' -f1; }
-get_sigma()         { echo "$1" | cut -d'|' -f2; }
-get_lambda()        { echo "$1" | cut -d'|' -f3; }
-get_max_timesteps() { echo "$1" | cut -d'|' -f4; }
+get_max_timesteps() { echo "$1" | cut -d'|' -f2; }
 
 # ── Run a single experiment (with retry + failure logging) ───────────────────
 run_experiment() {
     local strategy=$1
     local env=$2
     local seed=$3
-    local sigma0=$4
-    local lamb=$5
-    local max_ts=$6
+    local max_ts=$4
     local logfile="$LOG_DIR/revised_${strategy}_${env}_seed${seed}.log"
 
     local tries=0
     local max_tries=2
 
-    echo "[$(date '+%H:%M:%S')] START  $strategy | $env | seed=$seed | σ₀=$sigma0 λ=$lamb max_ts=$max_ts"
+    echo "[$(date '+%H:%M:%S')] START  $strategy | $env | seed=$seed | σ₀=$SIGMA0 λ=default max_ts=$max_ts"
 
     while (( tries < max_tries )); do
         tries=$((tries + 1))
@@ -85,8 +87,7 @@ run_experiment() {
             --strategy "$strategy" \
             --env_name "$env" \
             --seed "$seed" \
-            --sigma0 "$sigma0" \
-            --lamb "$lamb" \
+            --sigma0 "$SIGMA0" \
             --max_train_timesteps "$max_ts" \
             $BASE_ARGS \
             > "$logfile" 2>&1; then
@@ -117,12 +118,14 @@ echo "Parallelization: $MAX_JOBS jobs × $MAX_PARALLEL_ENVS env workers = $((MAX
 echo "Data directory: $DATA_DIR"
 echo "=============================================="
 echo ""
-echo "Per-environment hyperparameters:"
-printf "  %-20s  σ₀     λ    max_timesteps\n" "Environment"
-printf "  %-20s  -----  ---  -------------\n" "-------------------"
+echo "Hyperparameters: σ₀=$SIGMA0, λ=4+floor(3·ln(n)) (computed per env)"
+echo ""
+echo "Per-environment timestep budgets:"
+printf "  %-20s  max_timesteps\n" "Environment"
+printf "  %-20s  -------------\n" "-------------------"
 for spec in "${EXPERIMENTS[@]}"; do
-    printf "  %-20s  %-5s  %-3s  %s\n" \
-        "$(get_env "$spec")" "$(get_sigma "$spec")" "$(get_lambda "$spec")" "$(get_max_timesteps "$spec")"
+    printf "  %-20s  %s\n" \
+        "$(get_env "$spec")" "$(get_max_timesteps "$spec")"
 done
 echo ""
 echo "Total experiments: $ENV_COUNT envs × $STRAT_COUNT strategies × $SEED_COUNT seeds = $TOTAL_EXPS"
@@ -139,13 +142,11 @@ job_count=0
 
 for spec in "${EXPERIMENTS[@]}"; do
     env=$(get_env "$spec")
-    sigma0=$(get_sigma "$spec")
-    lamb=$(get_lambda "$spec")
     max_ts=$(get_max_timesteps "$spec")
 
     for strategy in "${STRATEGIES[@]}"; do
         for seed in "${SEEDS[@]}"; do
-            run_experiment "$strategy" "$env" "$seed" "$sigma0" "$lamb" "$max_ts" &
+            run_experiment "$strategy" "$env" "$seed" "$max_ts" &
             job_count=$((job_count + 1))
 
             # Throttle: wait for a slot when at capacity
