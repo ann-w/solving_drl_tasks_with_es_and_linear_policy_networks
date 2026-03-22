@@ -6,12 +6,7 @@ from dataclasses import dataclass, field
 
 
 import numpy as np
-# Patch for NumPy 2.0 compatibility
-if not hasattr(np, "float_"):
-    np.float_ = np.float64
-
 from scipy.stats import qmc
-from lmmaes import Lmmaes
 
 from .objective import Objective
 
@@ -203,10 +198,10 @@ class Weights:
         return np.sqrt(self.c_s * (2 - self.c_s) * self.mueff)
 
 
-def init_lambda(n, method="default"): 
+def init_lambda(n, method="n/2"):
     """
-    range:      2*mu < lambda < 2*n + 10 
-    default:    4 + floor(3 * ln(n)) #lambda cma
+    range:      2*mu < lambda < 2*n + 10
+    default:    4 + floor(3 * ln(n))
     """
 
     if method == "default":
@@ -506,68 +501,6 @@ class CMAES:
                     sigma,
                     f,
                 )
-        except KeyboardInterrupt:
-            pass
-        finally:
-            state.logger.close()
-        return state.best, state.mean
-
-
-@dataclass
-class LMMAES:
-    n: int
-
-    data_folder: str = None
-    test_gen: int = 25
-    sigma0: float = 0.5
-    lambda_: int = None
-    initialization: str = "zero"
-    seed: int = None
-
-    def __post_init__(self):
-        if self.n <= 2:
-            raise ValueError("LM-MA-ES requires search dimensionality greater than 2.")
-        self.lambda_ = self.lambda_ or init_lambda(self.n)
-        if self.lambda_ >= self.n:
-            warnings.warn(
-                "LM-MA-ES requires lambda < n; clamping lambda to n - 1.",
-                RuntimeWarning,
-            )
-            self.lambda_ = max(2, self.n - 1)
-        if self.lambda_ < 2:
-            raise ValueError("LM-MA-ES requires a population size of at least 2.")
-
-        self.mu = self.lambda_ // 2
-
-    def __call__(self, problem: Objective):
-        init = Initializer(self.n, method=self.initialization, max_evals=500)
-        x0 = init.get_x_prime(problem).flatten()
-
-        solver = Lmmaes(
-            x=x0,
-            sigma=self.sigma0,
-            popsize=self.lambda_,
-            rseed=self.seed,
-            verbose=False,
-        )
-
-        state = State("LM-MA-ES", self.data_folder, self.test_gen, self.lambda_)
-
-        try:
-            while not problem.should_stop():
-                population = solver.ask()
-                f = problem(population.T)
-                solver.tell(f)
-
-                best_idx = int(np.argmin(f))
-                state.update(
-                    problem,
-                    Solution(f[best_idx], population[best_idx].copy()),
-                    Solution(np.mean(f), solver.x.copy()),
-                    solver.sigma,
-                    f,
-                )
-
         except KeyboardInterrupt:
             pass
         finally:

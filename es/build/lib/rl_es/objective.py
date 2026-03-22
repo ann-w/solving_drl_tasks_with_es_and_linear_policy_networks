@@ -6,10 +6,6 @@ from dataclasses import dataclass
 from contextlib import redirect_stdout
 
 import numpy as np
-# Patch for NumPy 2.0 compatibility
-if not hasattr(np, "float_"):
-    np.float_ = np.float64
-
 import gymnasium as gym
 from gymnasium.utils.save_video import save_video
 
@@ -107,16 +103,14 @@ class Objective:
 
     def __call__(self, x):
         if self.parallel:
-            # x shape is (n_weights, population_size), split along population axis
             f = np.array(
                 list(
                     chain.from_iterable(
                         [
                             self.eval_parallel(split)
                             for split in np.array_split(
-                                x, np.ceil(x.shape[1] / self.max_parallel), axis=1
+                                x, np.ceil(x.shape[0] / self.max_parallel), axis=1
                             )
-                            if split.shape[1] > 0  # Skip empty splits
                         ]
                     )
                 )
@@ -201,7 +195,6 @@ class Objective:
                 for _ in range(n)
             ]
 
-        last_error = None
         for _ in range(5):
             try:
                 self.envs = gym.vector.AsyncVectorEnv(
@@ -209,10 +202,9 @@ class Objective:
                 )
                 break
             except Exception as e:
-                last_error = e
                 time.sleep(1)
         else:
-            raise RuntimeError(f"Failed to create environments after multiple retries: {last_error}")
+            breakpoint()
 
         for net, w in zip(self.nets, x.T):
             net.set_weights(w)

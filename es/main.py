@@ -7,6 +7,7 @@ import numpy as np
 from rl_es.algorithms import (
     CSA,
     CMAES,
+    LMMAES,
     ARS,
     ARS_OPTIMAL_PARAMETERS,
 )
@@ -21,6 +22,7 @@ STRATEGIES = (
     "sep-cma-es",
     "ars",
     "ars-v2",
+    "lm-ma-es",
 )
 
 def run_optimizer(args, obj, timer=None):
@@ -69,6 +71,16 @@ def run_optimizer(args, obj, timer=None):
             mu=args.mu,
             lambda_=args.lamb,
             initialization=args.initialization,
+        )
+    elif args.strategy == "lm-ma-es":
+        optimizer = LMMAES(
+            obj.n,
+            sigma0=args.sigma0,
+            lambda_=args.lamb,
+            data_folder=data_folder,
+            test_gen=args.test_every_nth_iteration,
+            initialization=args.initialization,
+            seed=args.seed,
         )
     else:
         raise ValueError(f"{args.strategy} is not implemented")
@@ -158,6 +170,7 @@ if __name__ == "__main__":
         "--n_layers", help="Number of layers in the controller", type=int, default=1
     )
     parser.add_argument("--with_bias", action="store_true")
+    parser.add_argument("--mlp", action="store_true", help="Use MLP 64x64 architecture (2 hidden layers with 64 units each)")
     parser.add_argument("--normalized", action="store_true")
     parser.add_argument("--mirrored", action="store_true")
     parser.add_argument("--uncertainty_handled", action="store_true")
@@ -166,6 +179,12 @@ if __name__ == "__main__":
     parser.add_argument("--seed_train_envs", action="store_true")
     parser.add_argument("--scale_by_std", action="store_true")
     parser.add_argument("--break_timesteps", action="store_true")
+    parser.add_argument(
+        "--max_train_timesteps",
+        type=float,
+        default=None,
+        help="Override EnvSetting.max_train_timesteps for the current run",
+    )
 
     parser.add_argument(
         "--initialization",
@@ -182,6 +201,12 @@ if __name__ == "__main__":
     parser.add_argument("--penalize_inactivity", action="store_true")
 
     parser.add_argument(
+        "--data_dir",
+        type=str,
+        default=None,
+        help="Custom data directory for experiment outputs (default: ./data)",
+    )
+    parser.add_argument(
         "--play",
         type=str,
         default=None,
@@ -196,6 +221,8 @@ if __name__ == "__main__":
 
     t = time.time()
     env_setting = ENVIRONMENTS[args.env_name]
+    if args.max_train_timesteps is not None:
+        env_setting.max_train_timesteps = args.max_train_timesteps
 
     if not os.path.isdir(DATA):
         os.makedirs(DATA)
@@ -203,6 +230,12 @@ if __name__ == "__main__":
     if args.n_timesteps is None:
         args.n_timesteps = env_setting.max_episode_steps
 
+
+    # Override n_layers and n_hidden if --mlp is enabled
+    if args.mlp:
+        args.n_layers = 3  # input -> hidden1 -> hidden2 -> output
+        args.n_hidden = 64
+        args.with_bias = True
 
     print(args)
     print(env_setting)
@@ -228,10 +261,15 @@ if __name__ == "__main__":
         if args.scale_by_std:
             strategy_name = f"{strategy_name}-std"
 
+        if args.mlp:
+            strategy_name = f"mlp-{strategy_name}"
+
         if args.lamb is not None:
             strategy_name = f"{strategy_name}-lambda-{args.lamb}"
 
-    data_folder = f"{DATA}/{args.env_name}/{strategy_name}/{t}"
+    # Use custom data directory if provided
+    base_data_dir = args.data_dir if args.data_dir else DATA
+    data_folder = f"{base_data_dir}/{args.env_name}/{strategy_name}/{t}"
     if args.play is None:
         os.makedirs(data_folder, exist_ok=True)
 

@@ -7,7 +7,7 @@ name = "rl-es"
 version = "0.0.2"
 description = ""
 readme = ""
-requires-python = ">=3.7"
+requires-python = ">=3.10" 
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -15,16 +15,14 @@ classifiers = [
 ]
 dependencies = [
   "black",
-  "gymnasium[all,accept-rom-license]==0.26.3",
-  "gymnasium[atari]==0.26.3",
-  "gymnasium[box2d]==0.26.3",
-  "gymnasium[mujoco]==0.26.3",
-  "mujoco==2.2.0",
+  "gymnasium[all,accept-rom-license]==0.29.1",
+  "lmmaes>=0.3,<0.4",
   "matplotlib",
   "moviepy",
   "numpy",
   "pandas",
   "scikit-image",
   "scipy",
+  "mujoco>=2.3.3,<3",
   "Cython<3"
 ]
