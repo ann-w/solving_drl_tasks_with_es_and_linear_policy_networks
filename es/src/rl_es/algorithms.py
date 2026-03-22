@@ -203,10 +203,10 @@ class Weights:
         return np.sqrt(self.c_s * (2 - self.c_s) * self.mueff)
 
 
-def init_lambda(n, method="n/2"):
+def init_lambda(n, method="default"): 
     """
-    range:      2*mu < lambda < 2*n + 10
-    default:    4 + floor(3 * ln(n))
+    range:      2*mu < lambda < 2*n + 10 
+    default:    4 + floor(3 * ln(n)) #lambda cma
     """
 
     if method == "default":
