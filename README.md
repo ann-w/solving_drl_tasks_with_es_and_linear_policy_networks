@@ -47,22 +47,12 @@ The parameters for the strategies are defined as follows:
 
 - CSA-ES `--strat=csa`
 - CMA-ES `--strat=cma-es`
-- sep-CMA-ES `--strat=sep=cma-es`
+- sep-CMA-ES `--strat=sep-cma-es`
 - ARS-V1 `--strat=ars`
 - ARS-V2 `--strat=ars-v2`
+- LM-MA-ES `--strat=lm-ma-es`
 
 
 ### Deep Reinforcement Learning (RL) and Linear RL Networks
 We have used the [cleanrl repository](github.com/vwxyzjn/cleanrl) for the reinforcement learning algorithms. CleanRL is a Deep Reinforcement Learning library that provides high-quality single-file implementation with research-friendly features. To run the RL linear policies, remove the hidden layers from the network. All hyperparameters are reported in the paper.
 
-
-<!-- ## Citation
-
-```
-@article{wong2024solving,
-  title={Solving Deep Reinforcement Learning Benchmarks with Linear Policy Networks},
-  author={Wong, Annie and de Nobel, Jacob and B{\"a}ck, Thomas and Plaat, Aske and Kononova, Anna V},
-  journal={arXiv preprint arXiv:2402.06912},
-  year={2024}
-}
-``` -->
